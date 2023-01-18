@@ -1,42 +1,146 @@
 openapi: 3.0.1
 info:
-  title: 'Pets API'
-  version: 0.0.2
+  title: 'Digitata Coupons API'
+  version: 0.5.0
 paths:
-  '/pets':
-    get:
-      operationId: GetPets # Optional better type name then PetsList
-      description: Get all pets
+  '/eligible':
+    post:
+      operationId: CouponEligible
+      description: Checks eligibility of a coupon
+      requestBody:
+        description: Description of promo to check for eligiblity
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InputPromoEligible"
       responses:
         '200':
           description: Success
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Pet"
+                type: object
+                $ref: "#/components/schemas/ResultPromoEligible"
 
-  '/pets/{id}':
-    get:
-      operationId: GetPetById # Optional better type name then PetsDetail
-      description: Get a pet by ID
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
+  '/redeem':
+    post:
+      operationId: CouponRedeem
+      description: Redeems a coupon id received from /eligible
+      requestBody:
+        description: Description of eligible promo to redeem
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InputPromoRedeem"
       responses:
         '200':
           description: Success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Pet"
+                type: object
+                $ref: "#/components/schemas/ResultPromoRedeem"
 
 components:
   schemas:
+    PromoProduct:
+      type: object
+      properties:
+        productId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        image:
+          type: string
+      required:
+        - productId
+        - type
+    RedeemedProduct:
+      type: object
+      properties:
+        productId:
+          type: string
+        status:
+          type: string
+        provisionId:
+          type: string
+      required:
+        - productId
+        - status
+        - provisionId
+
+    PromoProductProvisioned:
+      type: object
+      properties:
+        productId:
+          type: string
+        provisionId:
+          type: string
+        status:
+          type: string
+        errorMessage:
+          type: string
+      required:
+        - productId
+        - provisionId
+        - status
+
+    InputPromoEligible:
+      type: object
+      properties:
+        code:
+          type: string
+      required:
+        - code
+
+    ResultPromoEligible:
+      type: object
+      properties:
+        eligibleId:
+          type: string
+        eligible:
+          type: boolean
+        promos:
+          type: array
+          items:
+            $ref: "#/components/schemas/PromoProduct"
+        errorMessage:
+          type: string
+      required:
+        - valid
+
+    InputPromoRedeem:
+      type: object
+      properties:
+        eligibleId:
+          type: string
+        msisdn:
+          type: string
+      required:
+        - eligibleId
+        - msisdn
+
+    ResultPromoRedeem:
+      type: object
+      properties:
+        redeemedId:
+          type: string
+        status:
+          type: string
+        promos:
+          type: array
+          items:
+            $ref: "#/components/schemas/RedeemedProduct"
+        errorMessage:
+          type: string
+      required:
+        - status
+
+
+
+
     Pet:
       type: object
       properties:
@@ -48,6 +152,8 @@ components:
           type: string
         nickname:
           type: string
+        age:
+          type: number
       required:
         - id
         - type
