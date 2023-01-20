@@ -1,37 +1,90 @@
 openapi: 3.0.1
+servers:
+  - url: '/prod'
 info:
   title: 'Digitata Coupons API'
-  version: 0.5.0
+  version: 0.6.0
 paths:
   '/eligible':
     post:
       operationId: CouponEligible
-      description: Checks eligibility of a coupon
+      description: Checks eligibility of a coupon. This call must be made first to check validity of coupon code and to receive an eligibleId which can be used to claim promo using the /redeem API call.
       requestBody:
         description: Description of promo to check for eligiblity
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/InputPromoEligible"
+              $ref: "#/components/schemas/InputCouponEligible"
+            examples:
+              Promo1:
+                value:
+                  code: PROMO_12
+              Promo2:
+                value:
+                  code: PROMO_99
+              Invalid:
+                value:
+                  code: PROMO_INVALID
       responses:
+        '401':
+          description: Validation Error. Please check parameters.
+          content:
+            application/json:
+              schema:
+                type: object
         '200':
           description: Success
           content:
             application/json:
               schema:
                 type: object
-                $ref: "#/components/schemas/ResultPromoEligible"
+                $ref: "#/components/schemas/ResultCouponEligible"
+              examples:
+                Promo1:
+                  value:
+                    eligible: true
+                    eligibleId: "1234-1234-1234"
+                    promos:
+                      -
+                        productId: FREEPROMO_3459
+                        name: "Free Promotion"
+                        description: "First 3 months free"
+                        image: "free_promo_thumbnail.png"
+
+                Promo2:
+                  value:
+                    eligible: true
+                    eligibleId: "9999-9999-9999"
+                    promos:
+                      -
+                        productId: DISCOUNTPROMO_3459
+                        name: "Discount Promotion"
+                        description: "50% off for the first 12 months"
+                        image: "discount_promo_thumbnail.png"
+                Invalid:
+                  value:
+                    eligible: false
+                    errorMessage: "Coupon code not found"
 
   '/redeem':
     post:
       operationId: CouponRedeem
-      description: Redeems a coupon id received from /eligible
+      description: Redeems a coupon eligibleId received from /eligible. You have to receive a valid eligibleId from the /eligible call above and provide an subscriberId so that promotions can be activated.
       requestBody:
-        description: Description of eligible promo to redeem
+        description: Description of eligible promo to redeem. eligibleId is retrieved from /eligible and subscriberId is user subscriberId that is activating the promo.
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/InputPromoRedeem"
+              $ref: "#/components/schemas/InputCouponRedeem"
+            examples:
+              ValidEligibleId:
+                value:
+                  eligibleId: 1234-1234-1234-1234
+                  subscriberId: "27820000000"
+              InvalidEligibleId:
+                value:
+                  eligibleId: invalid-1234-1234-1234
+                  subscriberId: "27820000000"
       responses:
         '200':
           description: Success
@@ -39,7 +92,59 @@ paths:
             application/json:
               schema:
                 type: object
-                $ref: "#/components/schemas/ResultPromoRedeem"
+                $ref: "#/components/schemas/ResultCouponRedeem"
+              examples:
+                ValidEligibleId:
+                  value:
+                    redeemedId: 4567-5667-3456-1345
+                    status: SUCCESS
+                    promos:
+                      -
+                        status: SUBMITTED
+                        provisionId: 9876-9876-9876-9876
+                        productId: DISCOUNTPROMO_3459
+                InvalidEligibleId:
+                  value:
+                    status: NOT_FOUND
+                ExpiredIneligibleId:
+                  value:
+                    status: EXPIRED
+
+  '/subscriber/{subscriberId}':
+    get:
+      operationId: SubscriberCoupons
+      description: Returns a list of coupons and promotions activated by a specific subscriber.
+      parameters:
+        - in: path
+          name: subscriberId
+          schema:
+            type: string
+          required: true
+          description: Subscriber ID of the subscriber
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                $ref: "#/components/schemas/ResultSubscriberCoupons"
+              examples:
+                ValidEligibleId:
+                  value:
+                    redeemedId: 4567-5667-3456-1345
+                    status: SUCCESS
+                    promos:
+                      -
+                        status: SUBMITTED
+                        provisionId: 9876-9876-9876-9876
+                        productId: DISCOUNTPROMO_3459
+                InvalidEligibleId:
+                  value:
+                    status: NOT_FOUND
+                ExpiredIneligibleId:
+                  value:
+                    status: EXPIRED
 
 components:
   schemas:
@@ -66,28 +171,18 @@ components:
           type: string
         provisionId:
           type: string
+        name:
+          type: string
+        description:
+          type: string
+        image:
+          type: string
       required:
         - productId
         - status
         - provisionId
 
-    PromoProductProvisioned:
-      type: object
-      properties:
-        productId:
-          type: string
-        provisionId:
-          type: string
-        status:
-          type: string
-        errorMessage:
-          type: string
-      required:
-        - productId
-        - provisionId
-        - status
-
-    InputPromoEligible:
+    InputCouponEligible:
       type: object
       properties:
         code:
@@ -95,13 +190,15 @@ components:
       required:
         - code
 
-    ResultPromoEligible:
+    ResultCouponEligible:
       type: object
       properties:
         eligibleId:
           type: string
         eligible:
           type: boolean
+        eligibleTime:
+          type: string
         promos:
           type: array
           items:
@@ -111,18 +208,18 @@ components:
       required:
         - valid
 
-    InputPromoRedeem:
+    InputCouponRedeem:
       type: object
       properties:
         eligibleId:
           type: string
-        msisdn:
+        subscriberId:
           type: string
       required:
         - eligibleId
-        - msisdn
+        - subscriberId
 
-    ResultPromoRedeem:
+    ResultCouponRedeem:
       type: object
       properties:
         redeemedId:
@@ -138,23 +235,33 @@ components:
       required:
         - status
 
-
-
-
-    Pet:
+    RedeemedCoupon:
       type: object
       properties:
-        id:
-          type: number
-        type:
+        redeemedTime:
           type: string
-        name:
+        code:
           type: string
-        nickname:
+        redeemedId:
           type: string
-        age:
-          type: number
+        promos:
+          type: array
+          items:
+            $ref: "#/components/schemas/RedeemedProduct"
       required:
-        - id
-        - type
-        - name
+        - redeemedTime
+        - code
+        - redeemedId
+        - promos
+
+
+    ResultSubscriberCoupons:
+      type: object
+      properties:
+        coupons:
+          type: array
+          items:
+            $ref: "#/components/schemas/RedeemedCoupon"
+
+
+

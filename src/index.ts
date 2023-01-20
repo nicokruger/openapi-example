@@ -20,74 +20,91 @@ export interface RedeemedProduct {
   productId: string;
   status: string;
   provisionId: string;
+  name?: string;
+  description?: string;
+  image?: string;
 }
 
-export interface PromoProductProvisioned {
-  productId: string;
-  provisionId: string;
-  status: string;
-  errorMessage?: string;
-}
-
-export interface InputPromoEligible {
+export interface InputCouponEligible {
   code: string;
 }
 
-export interface ResultPromoEligible {
+export interface ResultCouponEligible {
   eligibleId?: string;
   eligible?: boolean;
+  eligibleTime?: string;
   promos?: PromoProduct[];
   errorMessage?: string;
 }
 
-export interface InputPromoRedeem {
+export interface InputCouponRedeem {
   eligibleId: string;
-  msisdn: string;
+  subscriberId: string;
 }
 
-export interface ResultPromoRedeem {
+export interface ResultCouponRedeem {
   redeemedId?: string;
   status: string;
   promos?: RedeemedProduct[];
   errorMessage?: string;
 }
 
-export interface Pet {
-  id: number;
-  type: string;
-  name: string;
-  nickname?: string;
-  age?: number;
+export interface RedeemedCoupon {
+  redeemedTime: string;
+  code: string;
+  redeemedId: string;
+  promos: RedeemedProduct[];
+}
+
+export interface ResultSubscriberCoupons {
+  coupons?: RedeemedCoupon[];
 }
 
 export namespace Eligible {
   /**
-   * @description Checks eligibility of a coupon
+   * @description Checks eligibility of a coupon. This call must be made first to check validity of coupon code and to receive an eligibleId which can be used to claim promo using the /redeem API call.
    * @name CouponEligible
    * @request POST:/eligible
-   * @response `200` `ResultPromoEligible` Success
+   * @response `200` `ResultCouponEligible` Success
+   * @response `401` `object` Validation Error. Please check parameters.
    */
   export namespace CouponEligible {
     export type RequestParams = {};
     export type RequestQuery = {};
-    export type RequestBody = InputPromoEligible;
+    export type RequestBody = InputCouponEligible;
     export type RequestHeaders = {};
-    export type ResponseBody = ResultPromoEligible;
+    export type ResponseBody = ResultCouponEligible;
   }
 }
 
 export namespace Redeem {
   /**
-   * @description Redeems a coupon id received from /eligible
+   * @description Redeems a coupon eligibleId received from /eligible. You have to receive a valid eligibleId from the /eligible call above and provide an subscriberId so that promotions can be activated.
    * @name CouponRedeem
    * @request POST:/redeem
-   * @response `200` `ResultPromoRedeem` Success
+   * @response `200` `ResultCouponRedeem` Success
    */
   export namespace CouponRedeem {
     export type RequestParams = {};
     export type RequestQuery = {};
-    export type RequestBody = InputPromoRedeem;
+    export type RequestBody = InputCouponRedeem;
     export type RequestHeaders = {};
-    export type ResponseBody = ResultPromoRedeem;
+    export type ResponseBody = ResultCouponRedeem;
+  }
+}
+
+export namespace Subscriber {
+  /**
+   * @description Returns a list of coupons and promotions activated by a specific subscriber.
+   * @name SubscriberCoupons
+   * @request GET:/subscriber/{subscriberId}
+   * @response `200` `ResultSubscriberCoupons` Success
+   */
+  export namespace SubscriberCoupons {
+    export type RequestParams = { subscriberId: string };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = ResultSubscriberCoupons;
   }
 }
